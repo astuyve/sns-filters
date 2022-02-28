@@ -1,0 +1,101 @@
+service: sns-filters
+
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  lambdaHashingVersion: 20201221
+  region: sa-east-1
+  tags:
+    env: ${opt:stage, self:provider.stage, 'dev'}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - SQS:*
+      Resource:
+        - Fn::GetAtt: [demoQueue, Arn]
+        - Fn::GetAtt: [demoDlq, Arn]
+    - Effect: Allow
+      Action:
+        - SNS:*
+      Resource:
+        - !Ref demoTopic
+custom:
+  queueName: sns-filters-demo-${opt:stage, "dev"}-queue
+  dlqName: sns-filters-demo-${opt:stage, "dev"}-dlq
+
+functions:
+  post:
+    handler: handler.post
+    description: aws:states:opt-in
+    environment:
+      TOPIC_ARN: !Ref demoTopic
+    events:
+      - httpApi:
+          path: /post
+          method: post
+
+resources:
+  Resources:
+    demoQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.queueName}
+    demoDlq:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.dlqName}
+    demoTopic:
+      Type: AWS::SNS::Topic
+    DatadogCompatibleSubscription:
+      Type: "AWS::SNS::Subscription"
+      Properties:
+        Protocol: sqs
+        TopicArn:
+          Ref: demoTopic
+        Endpoint: !GetAtt demoQueue.Arn
+        FilterPolicy:
+          _datadog:
+            - exists: true
+    DLQSubscription:
+      Type: "AWS::SNS::Subscription"
+      Properties:
+        Protocol: sqs
+        TopicArn:
+          Ref: demoTopic
+        Endpoint: !GetAtt demoDlq.Arn
+    SnsToSqsPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: "Allow SNS publish to SQS"
+              Effect: Allow
+              Principal:
+                Service: "sns.amazonaws.com"
+              Resource: !GetAtt demoQueue.Arn
+              Action: SQS:SendMessage
+              Condition:
+                ArnEquals:
+                  aws:SourceArn: !Ref demoTopic
+        Queues:
+          - Ref: demoQueue
+    SnsToSqsDlqPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: "Allow SNS publish to SQS"
+              Effect: Allow
+              Principal:
+                Service: "sns.amazonaws.com"
+              Resource: !GetAtt demoDlq.Arn
+              Action: SQS:SendMessage
+              Condition:
+                ArnEquals:
+                  aws:SourceArn: !Ref demoTopic
+        Queues:
+          - Ref: demoDlq
