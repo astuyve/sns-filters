@@ -30,6 +30,7 @@ functions:
     handler: handler.post
     description: aws:states:opt-in
     environment:
+      SNS_REGION: ${self:provider.region}
       TOPIC_ARN: !Ref demoTopic
     events:
       - httpApi:

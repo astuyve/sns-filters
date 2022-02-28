@@ -1,6 +1,6 @@
 "use strict";
 const AWS = require("aws-sdk");
-AWS.config.update({ region: "sa-east-1" });
+AWS.config.update({ region: process.env.SNS_REGION });
 const sns = new AWS.SNS({ apiVersion: "2012-11-05" });
 
 module.exports.post = async (event) => {
