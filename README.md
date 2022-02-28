@@ -17,8 +17,6 @@ The message is delivered to both queues
 
 The message is only delivered to the DLQ, and not the queue with the applied filter policy.
 
-You can read more [here](https://docs.google.com/document/d/1H49O6H-OQLH8PdtrzGq951KJ6UJrK40DWvt8lqM4PpQ/edit#)
-
 ## Deploying
 
 Install `serverless` with `npm i -g serverless`.
